@@ -48,7 +48,11 @@
 (vec_lit
   (_) @entry.inside @entry.around)
 
-; Map entries
+; Map entries (new grammar with explicit pair nodes)
+(map_entry
+  (_) @entry.inside) @entry.around
+
+; Map entries (old grammar - fallback for individual elements)
 (map_lit
   (_) @entry.inside @entry.around)
 
