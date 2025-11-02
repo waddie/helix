@@ -14,6 +14,7 @@ homepage.workspace = true
 default = []
 term = ["termina", "crossterm"]
 unicode-lines = []
+schema = ["schemars"]
 
 [dependencies]
 helix-stdx = { path = "../helix-stdx" }
@@ -48,6 +49,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml.workspace = true
 log = "~0.4"
+schemars = { version = "0.8", optional = true }
 
 parking_lot.workspace = true
 thiserror.workspace = true

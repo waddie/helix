@@ -17,10 +17,14 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ConfigRaw {
+    #[cfg_attr(feature = "schema", schemars(schema_with = "theme_schema"))]
     pub theme: Option<theme::Config>,
+    #[cfg_attr(feature = "schema", schemars(schema_with = "keys_schema"))]
     pub keys: Option<HashMap<Mode, KeyTrie>>,
+    #[cfg_attr(feature = "schema", schemars(with = "Option<helix_view::editor::Config>"))]
     pub editor: Option<toml::Value>,
 }
 
@@ -184,4 +188,109 @@ mod tests {
         let default_keys = Config::default().keys;
         assert_eq!(default_keys, keymap::default());
     }
+}
+
+#[cfg(feature = "schema")]
+fn theme_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    use schemars::schema::*;
+    SchemaObject {
+        subschemas: Some(Box::new(SubschemaValidation {
+            any_of: Some(vec![
+                // Simple string: theme name
+                SchemaObject {
+                    instance_type: Some(InstanceType::String.into()),
+                    metadata: Some(Box::new(Metadata {
+                        description: Some("Theme name".to_string()),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                }
+                .into(),
+                // Object with light/dark themes
+                SchemaObject {
+                    instance_type: Some(InstanceType::Object.into()),
+                    object: Some(Box::new(ObjectValidation {
+                        properties: [
+                            (
+                                "light".to_string(),
+                                SchemaObject {
+                                    instance_type: Some(InstanceType::String.into()),
+                                    metadata: Some(Box::new(Metadata {
+                                        description: Some("Theme to use in light mode".to_string()),
+                                        ..Default::default()
+                                    })),
+                                    ..Default::default()
+                                }
+                                .into(),
+                            ),
+                            (
+                                "dark".to_string(),
+                                SchemaObject {
+                                    instance_type: Some(InstanceType::String.into()),
+                                    metadata: Some(Box::new(Metadata {
+                                        description: Some("Theme to use in dark mode".to_string()),
+                                        ..Default::default()
+                                    })),
+                                    ..Default::default()
+                                }
+                                .into(),
+                            ),
+                            (
+                                "fallback".to_string(),
+                                SchemaObject {
+                                    instance_type: Some(InstanceType::String.into()),
+                                    metadata: Some(Box::new(Metadata {
+                                        description: Some("Fallback theme when mode is not specified".to_string()),
+                                        ..Default::default()
+                                    })),
+                                    ..Default::default()
+                                }
+                                .into(),
+                            ),
+                        ]
+                        .into_iter()
+                        .collect(),
+                        ..Default::default()
+                    })),
+                    metadata: Some(Box::new(Metadata {
+                        description: Some("Theme configuration with light/dark variants".to_string()),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                }
+                .into(),
+            ]),
+            ..Default::default()
+        })),
+        ..Default::default()
+    }
+    .into()
+}
+
+#[cfg(feature = "schema")]
+fn keys_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    use schemars::schema::*;
+    SchemaObject {
+        instance_type: Some(InstanceType::Object.into()),
+        object: Some(Box::new(ObjectValidation {
+            additional_properties: Some(Box::new(
+                SchemaObject {
+                    instance_type: Some(InstanceType::Object.into()),
+                    object: Some(Box::new(ObjectValidation {
+                        additional_properties: Some(Box::new(Schema::Bool(true))),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                }
+                .into(),
+            )),
+            ..Default::default()
+        })),
+        metadata: Some(Box::new(Metadata {
+            description: Some("Custom keybindings per mode (normal, insert, select)".to_string()),
+            ..Default::default()
+        })),
+        ..Default::default()
+    }
+    .into()
 }

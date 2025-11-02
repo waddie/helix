@@ -85,6 +85,7 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
 pub struct GutterConfig {
     /// Gutter Layout
@@ -162,6 +163,7 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
 pub struct GutterLineNumbersConfig {
     /// Minimum number of characters to use for line number gutter. Defaults to 3.
@@ -175,6 +177,7 @@ impl Default for GutterLineNumbersConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
 pub struct FilePickerConfig {
     /// IgnoreOptions
@@ -222,6 +225,7 @@ impl Default for FilePickerConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
 pub struct FileExplorerConfig {
     /// IgnoreOptions
@@ -290,6 +294,7 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
 pub struct Config {
     /// Padding to keep between the edge of the screen and the cursor when scrolling. Defaults to 5.
@@ -430,6 +435,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum KittyKeyboardProtocolConfig {
     #[default]
@@ -439,6 +445,7 @@ pub enum KittyKeyboardProtocolConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default, rename_all = "kebab-case", deny_unknown_fields)]
 pub struct SmartTabConfig {
     pub enable: bool,
@@ -455,6 +462,7 @@ impl Default for SmartTabConfig {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default, rename_all = "kebab-case", deny_unknown_fields)]
 pub struct TerminalConfig {
     pub command: String,
@@ -508,6 +516,7 @@ pub fn get_terminal_provider() -> Option<TerminalConfig> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default, rename_all = "kebab-case", deny_unknown_fields)]
 pub struct LspConfig {
     /// Enables LSP
@@ -551,6 +560,7 @@ impl Default for LspConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
 pub struct SearchConfig {
     /// Smart case: Case insensitive searching unless pattern contains upper case characters. Defaults to true.
@@ -560,6 +570,7 @@ pub struct SearchConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
 pub struct StatusLineConfig {
     pub left: Vec<StatusLineElement>,
@@ -600,6 +611,7 @@ impl Default for StatusLineConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
 pub struct ModeConfig {
     pub normal: String,
@@ -618,6 +630,7 @@ impl Default for ModeConfig {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum StatusLineElement {
     /// The editor mode (Normal, Insert, Visual/Selection)
@@ -744,8 +757,36 @@ impl Default for CursorShapeConfig {
     }
 }
 
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for CursorShapeConfig {
+    fn schema_name() -> String {
+        "CursorShapeConfig".to_string()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::*;
+        let cursor_kind_schema = gen.subschema_for::<CursorKind>();
+        SchemaObject {
+            instance_type: Some(InstanceType::Object.into()),
+            object: Some(Box::new(ObjectValidation {
+                properties: [
+                    ("normal".to_string(), cursor_kind_schema.clone()),
+                    ("insert".to_string(), cursor_kind_schema.clone()),
+                    ("select".to_string(), cursor_kind_schema),
+                ]
+                .into_iter()
+                .collect(),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+        .into()
+    }
+}
+
 /// bufferline render modes
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum BufferLine {
     /// Don't render bufferline
@@ -758,6 +799,7 @@ pub enum BufferLine {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum LineNumber {
     /// Show absolute line number
@@ -781,6 +823,7 @@ impl std::str::FromStr for LineNumber {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum GutterType {
     /// Show diagnostics and other features like breakpoints
@@ -810,6 +853,7 @@ impl std::str::FromStr for GutterType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct WhitespaceConfig {
     pub render: WhitespaceRender,
@@ -826,6 +870,7 @@ impl Default for WhitespaceConfig {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged, rename_all = "kebab-case")]
 pub enum WhitespaceRender {
     Basic(WhitespaceRenderValue),
@@ -840,6 +885,7 @@ pub enum WhitespaceRender {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum WhitespaceRenderValue {
     None,
@@ -892,6 +938,7 @@ impl WhitespaceRender {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub struct AutoSave {
     /// Auto save after a delay in milliseconds. Defaults to disabled.
@@ -903,6 +950,7 @@ pub struct AutoSave {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct AutoSaveAfterDelay {
     #[serde(default)]
@@ -947,6 +995,7 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct WhitespaceCharacters {
     pub space: char,
@@ -971,6 +1020,7 @@ impl Default for WhitespaceCharacters {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default, rename_all = "kebab-case")]
 pub struct IndentGuidesConfig {
     pub render: bool,
@@ -990,6 +1040,7 @@ impl Default for IndentGuidesConfig {
 
 /// Line ending configuration.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum LineEndingConfig {
     /// The platform's native line ending.
@@ -1029,6 +1080,7 @@ impl From<LineEndingConfig> for LineEnding {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum PopupBorderConfig {
     None,
@@ -1038,6 +1090,7 @@ pub enum PopupBorderConfig {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default, rename_all = "kebab-case", deny_unknown_fields)]
 pub struct WordCompletion {
     pub enable: bool,

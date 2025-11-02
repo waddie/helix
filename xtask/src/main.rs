@@ -1,6 +1,9 @@
+#![recursion_limit = "512"]
+
 mod docgen;
 mod helpers;
 mod path;
+mod schemagen;
 
 use std::{env, error::Error};
 
@@ -43,6 +46,10 @@ pub mod tasks {
         println!("Query check succeeded");
 
         Ok(())
+    }
+
+    pub fn schemagen() -> Result<(), DynError> {
+        crate::schemagen::generate_schemas()
     }
 
     pub fn themecheck(themes: impl Iterator<Item = String>) -> Result<(), DynError> {
@@ -90,6 +97,7 @@ Usage: Run with `cargo xtask <task>`, eg. `cargo xtask docgen`.
 
     Tasks:
         docgen                     Generate files to be included in the mdbook output.
+        schema-gen                 Generate JSON schemas for config.toml and languages.toml.
         query-check [languages]    Check that tree-sitter queries are valid for the given
                                    languages, or all languages if none are specified.
         theme-check [themes]       Check that the theme files in runtime/themes/ are valid for the
@@ -106,6 +114,7 @@ fn main() -> Result<(), DynError> {
         None => tasks::print_help(),
         Some(t) => match t.as_str() {
             "docgen" => tasks::docgen()?,
+            "schema-gen" => tasks::schemagen()?,
             "query-check" => tasks::querycheck(args)?,
             "theme-check" => tasks::themecheck(args)?,
             invalid => return Err(format!("Invalid task name: {}", invalid).into()),

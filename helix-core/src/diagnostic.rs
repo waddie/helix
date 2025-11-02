@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// Describes the severity level of a [`Diagnostic`].
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
     Hint,

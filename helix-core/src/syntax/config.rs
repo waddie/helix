@@ -13,6 +13,7 @@ use std::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub struct Configuration {
     pub language: Vec<LanguageConfiguration>,
@@ -21,6 +22,7 @@ pub struct Configuration {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct LanguageConfiguration {
     #[serde(skip)]
@@ -43,12 +45,14 @@ pub struct LanguageConfiguration {
         deserialize_with = "from_comment_tokens",
         alias = "comment-token"
     )]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<CommentTokenSchema>"))]
     pub comment_tokens: Option<Vec<String>>,
     #[serde(
         default,
         skip_serializing,
         deserialize_with = "from_block_comment_tokens"
     )]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<Vec<BlockCommentToken>>"))]
     pub block_comment_tokens: Option<Vec<BlockCommentToken>>,
     pub text_width: Option<usize>,
     pub soft_wrap: Option<SoftWrap>,
@@ -71,6 +75,7 @@ pub struct LanguageConfiguration {
 
     // content_regex
     #[serde(default, skip_serializing, deserialize_with = "deserialize_regex")]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<String>"))]
     pub injection_regex: Option<rope::Regex>,
     // first_line_regex
     //
@@ -80,6 +85,7 @@ pub struct LanguageConfiguration {
         serialize_with = "serialize_lang_features",
         deserialize_with = "deserialize_lang_features"
     )]
+    #[cfg_attr(feature = "schema", schemars(schema_with = "language_servers_schema"))]
     pub language_servers: Vec<LanguageServerFeatures>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub indent: Option<IndentationConfiguration>,
@@ -92,6 +98,7 @@ pub struct LanguageConfiguration {
     /// to specify a list of characters to pair. This overrides the
     /// global setting.
     #[serde(default, skip_serializing, deserialize_with = "deserialize_auto_pairs")]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<AutoPairConfig>"))]
     pub auto_pairs: Option<AutoPairs>,
 
     pub rulers: Option<Vec<u16>>, // if set, override editor's rulers
@@ -197,6 +204,58 @@ impl<'de> Deserialize<'de> for FileType {
     }
 }
 
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for FileType {
+    fn schema_name() -> String {
+        "FileType".to_string()
+    }
+
+    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::*;
+        SchemaObject {
+            subschemas: Some(Box::new(SubschemaValidation {
+                any_of: Some(vec![
+                    SchemaObject {
+                        instance_type: Some(InstanceType::String.into()),
+                        metadata: Some(Box::new(Metadata {
+                            description: Some("File extension".to_string()),
+                            ..Default::default()
+                        })),
+                        ..Default::default()
+                    }
+                    .into(),
+                    SchemaObject {
+                        instance_type: Some(InstanceType::Object.into()),
+                        object: Some(Box::new(ObjectValidation {
+                            properties: [(
+                                "glob".to_string(),
+                                SchemaObject {
+                                    instance_type: Some(InstanceType::String.into()),
+                                    metadata: Some(Box::new(Metadata {
+                                        description: Some("Glob pattern".to_string()),
+                                        ..Default::default()
+                                    })),
+                                    ..Default::default()
+                                }
+                                .into(),
+                            )]
+                            .into_iter()
+                            .collect(),
+                            required: ["glob".to_string()].into_iter().collect(),
+                            ..Default::default()
+                        })),
+                        ..Default::default()
+                    }
+                    .into(),
+                ]),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+        .into()
+    }
+}
+
 fn from_comment_tokens<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -216,6 +275,7 @@ where
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct BlockCommentToken {
     pub start: String,
     pub end: String,
@@ -251,6 +311,7 @@ where
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum LanguageServerFeature {
     Format,
@@ -398,6 +459,7 @@ where
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub struct LanguageServerConfiguration {
     pub command: String,
@@ -407,6 +469,7 @@ pub struct LanguageServerConfiguration {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub environment: HashMap<String, String>,
     #[serde(default, skip_serializing, deserialize_with = "deserialize_lsp_config")]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<serde_json::Value>"))]
     pub config: Option<serde_json::Value>,
     #[serde(default = "default_timeout")]
     pub timeout: u64,
@@ -415,10 +478,12 @@ pub struct LanguageServerConfiguration {
         skip_serializing,
         deserialize_with = "deserialize_required_root_patterns"
     )]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<Vec<String>>"))]
     pub required_root_patterns: Option<GlobSet>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub struct FormatterConfiguration {
     pub command: String,
@@ -428,6 +493,7 @@ pub struct FormatterConfiguration {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub struct AdvancedCompletion {
     pub name: Option<String>,
@@ -436,6 +502,7 @@ pub struct AdvancedCompletion {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", untagged)]
 pub enum DebugConfigCompletion {
     Named(String),
@@ -443,6 +510,7 @@ pub enum DebugConfigCompletion {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum DebugArgumentValue {
     String(String),
@@ -452,6 +520,7 @@ pub enum DebugArgumentValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub struct DebugTemplate {
     pub name: String,
@@ -462,6 +531,7 @@ pub struct DebugTemplate {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub struct DebugAdapterConfig {
     pub name: String,
@@ -478,12 +548,14 @@ pub struct DebugAdapterConfig {
 
 // Different workarounds for adapters' differences
 #[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DebuggerQuirks {
     #[serde(default)]
     pub absolute_paths: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub struct IndentationConfiguration {
     #[serde(deserialize_with = "deserialize_tab_width")]
@@ -495,6 +567,7 @@ pub struct IndentationConfiguration {
 /// If the selected heuristic is not available (e.g. because the current
 /// language has no tree-sitter indent queries), a simpler one will be used.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum IndentationHeuristic {
     /// Just copy the indentation of the line that the cursor is currently on.
@@ -509,6 +582,7 @@ pub enum IndentationHeuristic {
 
 /// Configuration for auto pairs
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case", deny_unknown_fields, untagged)]
 pub enum AutoPairConfig {
     /// Enables or disables auto pairing. False means disabled. True means to use the default pairs.
@@ -551,6 +625,7 @@ impl FromStr for AutoPairConfig {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default, rename_all = "kebab-case", deny_unknown_fields)]
 pub struct SoftWrap {
     /// Soft wrap lines that exceed viewport width. Default to off
@@ -581,10 +656,124 @@ pub struct SoftWrap {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default, rename_all = "kebab-case", deny_unknown_fields)]
 pub struct WordCompletion {
     pub enable: Option<bool>,
     pub trigger_length: Option<NonZeroU8>,
+}
+
+#[cfg(feature = "schema")]
+#[derive(schemars::JsonSchema)]
+#[schemars(untagged)]
+#[allow(dead_code)] // Only used for schema generation, not constructed at runtime
+enum CommentTokenSchema {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+#[cfg(feature = "schema")]
+fn language_servers_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    use schemars::schema::*;
+    SchemaObject {
+        instance_type: Some(InstanceType::Array.into()),
+        array: Some(Box::new(ArrayValidation {
+            items: Some(SingleOrVec::Single(Box::new(
+                SchemaObject {
+                    subschemas: Some(Box::new(SubschemaValidation {
+                        any_of: Some(vec![
+                            // Simple string: just the language server name
+                            SchemaObject {
+                                instance_type: Some(InstanceType::String.into()),
+                                metadata: Some(Box::new(Metadata {
+                                    description: Some("Language server name".to_string()),
+                                    ..Default::default()
+                                })),
+                                ..Default::default()
+                            }
+                            .into(),
+                            // Object with features
+                            SchemaObject {
+                                instance_type: Some(InstanceType::Object.into()),
+                                object: Some(Box::new(ObjectValidation {
+                                    properties: [
+                                        (
+                                            "name".to_string(),
+                                            SchemaObject {
+                                                instance_type: Some(InstanceType::String.into()),
+                                                metadata: Some(Box::new(Metadata {
+                                                    description: Some("Language server name".to_string()),
+                                                    ..Default::default()
+                                                })),
+                                                ..Default::default()
+                                            }
+                                            .into(),
+                                        ),
+                                        (
+                                            "only-features".to_string(),
+                                            SchemaObject {
+                                                instance_type: Some(InstanceType::Array.into()),
+                                                array: Some(Box::new(ArrayValidation {
+                                                    items: Some(SingleOrVec::Single(Box::new(
+                                                        SchemaObject {
+                                                            instance_type: Some(InstanceType::String.into()),
+                                                            ..Default::default()
+                                                        }
+                                                        .into(),
+                                                    ))),
+                                                    ..Default::default()
+                                                })),
+                                                metadata: Some(Box::new(Metadata {
+                                                    description: Some("Only enable these LSP features".to_string()),
+                                                    ..Default::default()
+                                                })),
+                                                ..Default::default()
+                                            }
+                                            .into(),
+                                        ),
+                                        (
+                                            "except-features".to_string(),
+                                            SchemaObject {
+                                                instance_type: Some(InstanceType::Array.into()),
+                                                array: Some(Box::new(ArrayValidation {
+                                                    items: Some(SingleOrVec::Single(Box::new(
+                                                        SchemaObject {
+                                                            instance_type: Some(InstanceType::String.into()),
+                                                            ..Default::default()
+                                                        }
+                                                        .into(),
+                                                    ))),
+                                                    ..Default::default()
+                                                })),
+                                                metadata: Some(Box::new(Metadata {
+                                                    description: Some("Disable these LSP features".to_string()),
+                                                    ..Default::default()
+                                                })),
+                                                ..Default::default()
+                                            }
+                                            .into(),
+                                        ),
+                                    ]
+                                    .into_iter()
+                                    .collect(),
+                                    required: ["name".to_string()].into_iter().collect(),
+                                    ..Default::default()
+                                })),
+                                ..Default::default()
+                            }
+                            .into(),
+                        ]),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                }
+                .into(),
+            ))),
+            ..Default::default()
+        })),
+        ..Default::default()
+    }
+    .into()
 }
 
 fn deserialize_regex<'de, D>(deserializer: D) -> Result<Option<rope::Regex>, D::Error>

@@ -68,6 +68,7 @@ mod external {
     use super::*;
 
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+    #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
     pub struct Command {
         command: Cow<'static, str>,
         #[serde(default)]
@@ -75,6 +76,7 @@ mod external {
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+    #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
     #[serde(rename_all = "kebab-case")]
     pub struct CommandProvider {
         yank: Command,
@@ -84,6 +86,7 @@ mod external {
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+    #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
     #[serde(rename_all = "kebab-case")]
     #[allow(clippy::large_enum_variant)]
     pub enum ClipboardProvider {

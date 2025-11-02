@@ -6,6 +6,7 @@ use std::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 /// UNSTABLE
 pub enum CursorKind {

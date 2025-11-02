@@ -48,7 +48,31 @@ impl Serialize for DiagnosticFilter {
     }
 }
 
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for DiagnosticFilter {
+    fn schema_name() -> String {
+        "DiagnosticFilter".to_string()
+    }
+
+    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::*;
+        SchemaObject {
+            instance_type: Some(InstanceType::String.into()),
+            enum_values: Some(vec![
+                "disable".into(),
+                "hint".into(),
+                "info".into(),
+                "warning".into(),
+                "error".into(),
+            ]),
+            ..Default::default()
+        }
+        .into()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default, rename_all = "kebab-case", deny_unknown_fields)]
 pub struct InlineDiagnosticsConfig {
     pub cursor_line: DiagnosticFilter,
