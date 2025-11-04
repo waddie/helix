@@ -99,9 +99,24 @@ impl Jobs {
         self.add(Job::with_callback(f));
     }
 
-    /// Like `callback` but the job is added to wait_futures, allowing synchronous code
-    /// to block and wait for it. Used during macro replay to ensure async operations
-    /// complete before subsequent keys are processed.
+    /// Schedules a callback job that can be synchronously awaited by blocking code.
+    ///
+    /// Unlike [`callback`](Self::callback) which spawns the job and returns immediately,
+    /// this adds the job to `wait_futures`, making it visible to code that blocks on
+    /// `wait_futures.next()` (e.g., via `tokio::task::block_in_place` + `helix_lsp::block_on`).
+    ///
+    /// # Use Case
+    ///
+    /// This is primarily used during macro replay to ensure async operations (like LSP
+    /// requests that show pickers) complete before processing subsequent macro keys.
+    /// Without waiting, the next key would be processed before the picker UI is ready,
+    /// causing the key to be misrouted to the wrong component.
+    ///
+    /// # Implementation Note
+    ///
+    /// Jobs added via this method are marked with `.wait_before_exiting()`, which places
+    /// them in the `wait_futures` queue monitored by both the event loop and
+    /// `drain_pending_jobs()` during macro replay.
     pub fn callback_wait<F: Future<Output = anyhow::Result<Callback>> + Send + 'static>(
         &mut self,
         f: F,
