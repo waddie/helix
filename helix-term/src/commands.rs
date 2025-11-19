@@ -278,6 +278,7 @@ impl MappableCommand {
                 cx.callback.push(Box::new(move |compositor, cx| {
                     for key in keys.into_iter() {
                         compositor.handle_event(&compositor::Event::Key(key), cx);
+                        drain_pending_jobs(cx.jobs, &mut cx.editor, compositor);
                     }
                     cx.editor.macro_replaying.pop();
                 }));
@@ -6682,6 +6683,85 @@ fn record_macro(cx: &mut Context) {
     }
 }
 
+/// Drains pending async callbacks and futures after processing a key during macro replay.
+/// This ensures UI components from async operations (like LSP pickers) are available
+/// before the next key is processed.
+///
+/// Note: Uses `tokio::task::block_in_place()` which requires a multi-threaded tokio runtime.
+/// The runtime is configured via `#[tokio::main]` in main.rs, which defaults to multi-threaded.
+fn drain_pending_jobs(jobs: &mut Jobs, editor: &mut Editor, compositor: &mut Compositor) {
+    use futures_util::StreamExt;
+    use std::time::Duration;
+
+    // Timeout per async operation to prevent indefinite hangs with slow LSP servers
+    const OPERATION_TIMEOUT: Duration = Duration::from_secs(10);
+
+    // Limit iterations to prevent infinite loops if callbacks recursively spawn callbacks.
+    // Set to 100 as a safety limit - typical macro replay with LSP operations should
+    // complete well under this (usually 1-5 iterations for simple macros with one LSP call).
+    const MAX_ITERATIONS: usize = 100;
+    let mut iterations = 0;
+
+    loop {
+        if iterations >= MAX_ITERATIONS {
+            let msg = format!(
+                "Macro replay: reached max iterations ({}), some operations may be incomplete",
+                MAX_ITERATIONS
+            );
+            log::warn!("{}", msg);
+            editor.set_error(msg);
+            break;
+        }
+        iterations += 1;
+
+        let mut drained_any = false;
+
+        // Drain completed callbacks from the channel
+        while let Ok(callback) = jobs.callbacks.try_recv() {
+            log::trace!("drain_pending_jobs: processing callback from channel");
+            jobs.handle_callback(editor, compositor, Ok(Some(callback)));
+            drained_any = true;
+        }
+
+        // Wait for any pending futures to complete with timeout
+        // Requires multi-threaded tokio runtime for block_in_place
+        while !jobs.wait_futures.is_empty() {
+            let result = tokio::task::block_in_place(|| {
+                helix_lsp::block_on(async {
+                    tokio::time::timeout(OPERATION_TIMEOUT, jobs.wait_futures.next()).await
+                })
+            });
+
+            match result {
+                Ok(Some(callback)) => {
+                    log::trace!("drain_pending_jobs: processing callback from wait_futures");
+                    jobs.handle_callback(editor, compositor, callback);
+                    drained_any = true;
+                }
+                Ok(None) => {
+                    // No more futures
+                    break;
+                }
+                Err(_) => {
+                    // Timeout occurred
+                    let msg = format!(
+                        "Macro replay: LSP operation timed out after {}s",
+                        OPERATION_TIMEOUT.as_secs()
+                    );
+                    log::error!("{}", msg);
+                    editor.set_error(msg);
+                    // Clear the timed-out future and continue
+                    break;
+                }
+            }
+        }
+
+        if !drained_any {
+            break;
+        }
+    }
+}
+
 fn replay_macro(cx: &mut Context) {
     let reg = cx.register.unwrap_or('@');
 
@@ -6721,6 +6801,7 @@ fn replay_macro(cx: &mut Context) {
         for _ in 0..count {
             for &key in keys.iter() {
                 compositor.handle_event(&compositor::Event::Key(key), cx);
+                drain_pending_jobs(cx.jobs, &mut cx.editor, compositor);
             }
         }
         // The macro under replay is cleared at the end of the callback, not in the

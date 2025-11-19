@@ -34,6 +34,19 @@ use crate::{
 
 use std::{cmp::Ordering, collections::HashSet, fmt::Display, future::Future, path::Path};
 
+/// Helper to conditionally use callback_wait during macro replay.
+/// This ensures async operations complete before subsequent macro keys are processed.
+fn schedule_callback<F>(cx: &mut Context, future: F)
+where
+    F: Future<Output = anyhow::Result<Callback>> + Send + 'static,
+{
+    if cx.editor.macro_replaying.is_empty() {
+        cx.jobs.callback(future);
+    } else {
+        cx.jobs.callback_wait(future);
+    }
+}
+
 /// Gets the first language server that is attached to a document which supports a specific feature.
 /// If there is no configured language server that supports the feature, this displays a status message.
 /// Using this macro in a context where the editor automatically queries the LSP
@@ -396,7 +409,7 @@ pub fn symbol_picker(cx: &mut Context) {
         return;
     }
 
-    cx.jobs.callback(async move {
+    let future = async move {
         let mut symbols = Vec::new();
         while let Some(response) = futures.next().await {
             match response {
@@ -440,7 +453,9 @@ pub fn symbol_picker(cx: &mut Context) {
         };
 
         Ok(Callback::EditorCompositor(Box::new(call)))
-    });
+    };
+
+    schedule_callback(cx, future);
 }
 
 pub fn workspace_symbol_picker(cx: &mut Context) {
@@ -752,7 +767,7 @@ pub fn code_action(cx: &mut Context) {
         return;
     }
 
-    cx.jobs.callback(async move {
+    let future = async move {
         let mut actions = Vec::new();
 
         while let Some(output) = futures.next().await {
@@ -822,7 +837,9 @@ pub fn code_action(cx: &mut Context) {
         };
 
         Ok(Callback::EditorCompositor(Box::new(call)))
-    });
+    };
+
+    schedule_callback(cx, future);
 }
 
 #[derive(Debug)]
@@ -900,7 +917,7 @@ where
         })
         .collect();
 
-    cx.jobs.callback(async move {
+    let future = async move {
         let mut locations = Vec::new();
         while let Some(response) = futures.next().await {
             match response {
@@ -947,7 +964,9 @@ where
             }
         };
         Ok(Callback::EditorCompositor(Box::new(call)))
-    });
+    };
+
+    schedule_callback(cx, future);
 }
 
 pub fn goto_declaration(cx: &mut Context) {
@@ -1003,7 +1022,7 @@ pub fn goto_reference(cx: &mut Context) {
         })
         .collect();
 
-    cx.jobs.callback(async move {
+    let future = async move {
         let mut locations = Vec::new();
         while let Some(response) = futures.next().await {
             match response {
@@ -1024,7 +1043,9 @@ pub fn goto_reference(cx: &mut Context) {
             }
         };
         Ok(Callback::EditorCompositor(Box::new(call)))
-    });
+    };
+
+    schedule_callback(cx, future);
 }
 
 pub fn signature_help(cx: &mut Context) {
@@ -1063,7 +1084,7 @@ pub fn hover(cx: &mut Context) {
         })
         .collect();
 
-    cx.jobs.callback(async move {
+    let future = async move {
         let mut hovers: Vec<(String, lsp::Hover)> = Vec::new();
 
         while let Some(response) = futures.next().await {
@@ -1086,7 +1107,9 @@ pub fn hover(cx: &mut Context) {
             compositor.replace_or_push(Hover::ID, popup);
         };
         Ok(Callback::EditorCompositor(Box::new(call)))
-    });
+    };
+
+    schedule_callback(cx, future);
 }
 
 pub fn rename_symbol(cx: &mut Context) {
